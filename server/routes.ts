@@ -81,7 +81,7 @@ Debes entender cuando el usuario dice "dame otra", "sin cebolla", "más rápida"
       `;
 
       const respuestaIA = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-3.5-turbo",
         messages: [
           { role: "system", content: promptSistema },
           { role: "user", content: mensaje },
@@ -100,7 +100,7 @@ Debes entender cuando el usuario dice "dame otra", "sin cebolla", "más rápida"
       });
 
       res.json({ respuesta: respuestaChef });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in chat endpoint:", error);
       
       if (error.code === 'insufficient_quota') {
