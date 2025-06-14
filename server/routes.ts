@@ -102,6 +102,27 @@ Debes entender cuando el usuario dice "dame otra", "sin cebolla", "más rápida"
       res.json({ respuesta: respuestaChef });
     } catch (error) {
       console.error("Error in chat endpoint:", error);
+      
+      if (error.code === 'insufficient_quota') {
+        const respuestaChef = `¡Hola! Soy tu Chef Personal AI 👨‍🍳
+
+Tu clave de OpenAI es válida, pero necesitas añadir créditos a tu cuenta de OpenAI para usar la API.
+
+Ve a https://platform.openai.com/settings/organization/billing para añadir créditos.
+
+Una vez que tengas créditos disponibles, podremos cocinar juntos con recetas personalizadas.`;
+
+        // Store chef response about quota
+        await storage.createChatMessage({
+          content: respuestaChef,
+          sender: "chef",
+          sessionId: req.body.sessionId || "default-session",
+        });
+
+        res.json({ respuesta: respuestaChef });
+        return;
+      }
+      
       res.status(500).json({ error: "Algo salió mal con la IA. Inténtalo de nuevo." });
     }
   });
