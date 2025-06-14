@@ -7,7 +7,7 @@ import { z } from "zod";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "your-api-key-here"
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 const chatRequestSchema = z.object({
@@ -27,6 +27,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sender: "user",
         sessionId,
       });
+
+      // Check if we have a valid API key
+      if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "MiniChef") {
+        const respuestaChef = `¡Hola! Soy tu Chef Personal AI 👨‍🍳
+
+Para poder ayudarte con recetas y consejos de cocina, necesito que configures una clave de API de OpenAI válida.
+
+Mientras tanto, te puedo decir que soy un chef experto que puede ayudarte con:
+🍝 Recetas paso a paso
+🥗 Sugerencias de ingredientes
+🍲 Técnicas de cocina
+🧁 Ideas para postres
+
+¡Una vez que tengas la API configurada, podremos cocinar juntos!`;
+
+        // Store chef response
+        await storage.createChatMessage({
+          content: respuestaChef,
+          sender: "chef",
+          sessionId,
+        });
+
+        res.json({ respuesta: respuestaChef });
+        return;
+      }
 
       const promptSistema = `
 Eres un chef experto español muy amigable y entusiasta. Solo hablas de comida, cocina, recetas, ingredientes y menús. No hablas de otros temas. Respondes con amabilidad, en lenguaje natural, como si fueras un chef amigo.
