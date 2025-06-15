@@ -16,18 +16,13 @@ export async function apiRequest(
   const fullUrl = url.startsWith("http")
     ? url
     : `${API_BASE_URL}${url}`;
+
   const res = await fetch(fullUrl, {
     method,
-    body: data ? JSON.stringify(data) : null,
     headers: {
       "Content-Type": "application/json",
     },
-  });
-    method,
-      headers: {
-        "Content-Type": "application/json"
-      },
-    body: data ? JSON.stringify(data) : undefined,
+    body: data ? JSON.stringify(data) : null,
     credentials: "include",
   });
 
@@ -36,6 +31,7 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
+
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
