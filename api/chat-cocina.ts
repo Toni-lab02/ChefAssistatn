@@ -6,3 +6,4 @@ export default (req: VercelRequest, res: VercelResponse) => {
   const server = createServer(app);
   server.emit("request", req, res);
 };
+// Handler para chat-cocina en Vercel
