@@ -1,3 +1,4 @@
+const API_BASE_URL = "https://a4e66954-4712-483e-9d40-7763d73237a8-00-3o1rp18pyvh87.picard.replit.dev";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
@@ -12,7 +13,16 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith("http")
+    ? url
+    : `${API_BASE_URL}${url}`;
+  const res = await fetch(fullUrl, {
+    method,
+    body: data ? JSON.stringify(data) : null,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
