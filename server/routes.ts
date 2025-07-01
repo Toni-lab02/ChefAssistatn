@@ -17,7 +17,7 @@ const chatRequestSchema = z.object({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Chat endpoint for cooking assistant
-    app.post("/api/chat", async (req, res) => {
+  app.post("/api/chat-cocina", async (req, res) => {
     try {
       const { mensaje, sessionId = "default-session" } = chatRequestSchema.parse(req.body);
 
