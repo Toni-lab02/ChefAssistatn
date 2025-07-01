@@ -18,14 +18,18 @@ const chatRequestSchema = z.object({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Chat endpoint for cooking assistant
   app.post("/api/chat-cocina", async (req, res) => {
+    // Parse request and determine session ID outside try block for error handling
+    const { mensaje, sessionId } = chatRequestSchema.parse(req.body);
+    const userIP = req.ip || req.connection.remoteAddress || "unknown";
+    const finalSessionId = sessionId || `ip-${userIP}`;
+    
     try {
-      const { mensaje, sessionId = "default-session" } = chatRequestSchema.parse(req.body);
 
       // Store user message
       await storage.createChatMessage({
         content: mensaje,
         sender: "user",
-        sessionId,
+        sessionId: finalSessionId,
       });
 
       // Check if we have a valid API key
@@ -46,12 +50,16 @@ Mientras tanto, te puedo decir que soy un chef experto que puede ayudarte con:
         await storage.createChatMessage({
           content: respuestaChef,
           sender: "chef",
-          sessionId,
+          sessionId: finalSessionId,
         });
 
         res.json({ respuesta: respuestaChef });
         return;
       }
+
+      // Get conversation history for context (limit to last 10-15 messages)
+      const conversationHistory = await storage.getChatMessages(finalSessionId);
+      const recentHistory = conversationHistory.slice(-14); // Keep last 14 messages + current = 15 max
 
       const promptSistema = `
 Eres un chef experto español muy amigable y entusiasta. Solo hablas de comida, cocina, recetas, ingredientes y menús. No hablas de otros temas. Respondes con amabilidad, en lenguaje natural, como si fueras un chef amigo.
@@ -64,6 +72,7 @@ Características de tus respuestas:
 - Eres entusiasta sobre la cocina casera
 - Adaptas las recetas según las preferencias del usuario (sin cebolla, más rápido, etc.)
 - Cuando mencionas ingredientes, los presentas de forma organizada
+- Recuerdas el contexto de la conversación anterior para dar respuestas más precisas
 
 Ejemplo de cómo debes responder:
 Usuario: me apetece algo con arroz
@@ -77,15 +86,32 @@ Ingredientes:
 
 Se hace en solo 20 minutos. ¿Quieres que te explique los pasos?
 
-Debes entender cuando el usuario dice "dame otra", "sin cebolla", "más rápida", etc., y adaptar tu respuesta en consecuencia.
+Cuando el usuario haga referencias como "dame otra", "sin cebolla", "más rápida", "los pasos detallados", etc., usa el contexto de la conversación para entender a qué se refiere exactamente.
       `;
 
+      // Build conversation messages for OpenAI
+      const messages: Array<{role: "system" | "user" | "assistant", content: string}> = [
+        { role: "system", content: promptSistema }
+      ];
+
+      // Add conversation history
+      recentHistory.forEach(msg => {
+        const role = msg.sender === "user" ? "user" : "assistant";
+        messages.push({
+          role: role as "user" | "assistant",
+          content: msg.content
+        });
+      });
+
+      // Add current user message
+      messages.push({
+        role: "user" as const,
+        content: mensaje
+      });
+
       const respuestaIA = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          { role: "system", content: promptSistema },
-          { role: "user", content: mensaje },
-        ],
+        model: "gpt-4o", // Use gpt-4o as it's the newest model
+        messages: messages,
         max_tokens: 500,
         temperature: 0.7,
       });
@@ -96,7 +122,7 @@ Debes entender cuando el usuario dice "dame otra", "sin cebolla", "más rápida"
       await storage.createChatMessage({
         content: respuestaChef,
         sender: "chef",
-        sessionId,
+        sessionId: finalSessionId,
       });
 
       res.json({ respuesta: respuestaChef });
@@ -116,7 +142,7 @@ Una vez que tengas créditos disponibles, podremos cocinar juntos con recetas pe
         await storage.createChatMessage({
           content: respuestaChef,
           sender: "chef",
-          sessionId: req.body.sessionId || "default-session",
+          sessionId: finalSessionId,
         });
 
         res.json({ respuesta: respuestaChef });
