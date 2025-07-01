@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://a4e66954-4712-483e-9d40-7763d73237a8-00-3o1rp18pyvh87.picard.replit.dev";
+const API_BASE_URL = "";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {

@@ -21,9 +21,11 @@ A full-stack chat application that provides cooking assistance using OpenAI's GP
 ## Recent Changes
 - **July 1, 2025**: Successfully migrated from Replit Agent to Replit environment
   - Configured OpenAI API key for chat functionality
-  - Verified CORS configuration for cross-origin requests
-  - Confirmed application startup and API endpoints are functional
-  - All migration checklist items completed successfully
+  - Fixed endpoint mismatch: changed server route from `/api/chat` to `/api/chat-cocina`
+  - Updated CORS configuration for production deployment flexibility
+  - Removed hardcoded API_BASE_URL to support relative URLs in production
+  - Added @types/cors dependency for TypeScript compatibility
+  - Resolved "Error: no se pudo enviar el mensaje" issue for Render deployment
 
 ## User Preferences
 - Language: Spanish (as evidenced by code comments)

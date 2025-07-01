@@ -5,9 +5,17 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
-// ✅ Activamos CORS permitiendo el origen del frontend en Render
+// ✅ Configuración CORS más flexible para producción
 app.use(cors({
-  origin: "https://chefassistatn.onrender.com"
+  origin: process.env.NODE_ENV === 'production' 
+    ? [
+        "https://chefassistatn.onrender.com",
+        /\.onrender\.com$/,
+        /\.replit\.app$/,
+        /\.replit\.dev$/
+      ]
+    : true,
+  credentials: true
 }));
 
 app.use(express.json());
