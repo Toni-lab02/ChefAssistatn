@@ -33,6 +33,9 @@ A full-stack chat application that provides cooking assistance using OpenAI's GP
   - Created independent deployment configuration for Render
   - Enhanced environment detection for development vs production
   - Added render.yaml and deployment documentation
+  - Integrated Lovable iframe communication for structured recipe data
+  - Enhanced AI prompt for better structured recipe responses
+  - Added automatic recipe parsing and postMessage to parent window
 
 ## User Preferences
 - Language: Spanish (as evidenced by code comments)

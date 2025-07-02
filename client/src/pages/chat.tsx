@@ -6,6 +6,96 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ChefHat, Send, Paperclip } from "lucide-react";
 
+// Function to send recipe data to Lovable iframe parent
+function enviarRecetaALovable(titulo: string, ingredientes: string[], pasos: string[]) {
+  const mensaje = {
+    type: "NUEVA_RECETA",
+    data: {
+      titulo,
+      ingredientes, // array de strings
+      pasos         // array de strings
+    }
+  };
+
+  window.parent.postMessage(mensaje, "*"); // puedes reemplazar '*' por el dominio exacto si lo sabes
+}
+
+// Function to parse recipe from AI response text
+function parseRecipeFromText(text: string): { titulo: string; ingredientes: string[]; pasos: string[] } | null {
+  try {
+    // Look for recipe patterns in the text
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+    
+    let titulo = "";
+    let ingredientes: string[] = [];
+    let pasos: string[] = [];
+    
+    let currentSection = "";
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Try to detect title (usually first meaningful line or line with recipe name)
+      if (!titulo && (line.includes("receta") || line.includes("plato") || line.includes("delicioso"))) {
+        titulo = line.replace(/[🍝🥗🍲🧁✨]/g, "").trim();
+      }
+      
+      // Detect ingredients section
+      if (line.toLowerCase().includes("ingredientes") || line.includes("🍚") || line.includes("🧅")) {
+        currentSection = "ingredientes";
+        continue;
+      }
+      
+      // Detect steps section
+      if (line.toLowerCase().includes("pasos") || line.toLowerCase().includes("preparación") || 
+          line.toLowerCase().includes("instrucciones") || line.includes("1.") || line.includes("1-")) {
+        currentSection = "pasos";
+        continue;
+      }
+      
+      // Parse ingredients (lines with emoji indicators or bullet points)
+      if (currentSection === "ingredientes" && (line.includes("🍚") || line.includes("🧅") || 
+          line.includes("🥕") || line.includes("🥢") || line.startsWith("•") || line.startsWith("-"))) {
+        const ingredient = line.replace(/[🍚🧅🥕🥢•-]/g, "").trim();
+        if (ingredient) ingredientes.push(ingredient);
+      }
+      
+      // Parse steps (numbered or bulleted items)
+      if (currentSection === "pasos" && (line.match(/^\d+\./) || line.match(/^\d+-/) || line.startsWith("•") || line.startsWith("-"))) {
+        const step = line.replace(/^\d+[.-]\s*/, "").replace(/^[•-]\s*/, "").trim();
+        if (step) pasos.push(step);
+      }
+    }
+    
+    // If no explicit sections found, try to detect based on emojis and patterns
+    if (ingredientes.length === 0) {
+      for (const line of lines) {
+        if (line.includes("🍚") || line.includes("🧅") || line.includes("🥕") || line.includes("🥢")) {
+          const ingredient = line.replace(/[🍚🧅🥕🥢]/g, "").trim();
+          if (ingredient && !ingredient.toLowerCase().includes("pasos") && !ingredient.toLowerCase().includes("minutos")) {
+            ingredientes.push(ingredient);
+          }
+        }
+      }
+    }
+    
+    // Set default title if none found
+    if (!titulo && ingredientes.length > 0) {
+      titulo = "Receta sugerida por el Chef";
+    }
+    
+    // Return recipe data if we found ingredients (minimum requirement for a recipe)
+    if (ingredientes.length > 0) {
+      return { titulo, ingredientes, pasos };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error parsing recipe:", error);
+    return null;
+  }
+}
+
 export default function Chat() {
   const [message, setMessage] = useState("");
   const [sessionId] = useState(() => `session-${Date.now()}`);
@@ -83,6 +173,23 @@ export default function Chat() {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, sendMessageMutation.isPending]);
+
+  // Monitor messages for recipes and send to Lovable
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      
+      // Check if the last message is from the chef and contains recipe information
+      if (lastMessage.sender === "chef") {
+        const recipeData = parseRecipeFromText(lastMessage.content);
+        
+        if (recipeData) {
+          console.log("Recipe detected, sending to Lovable:", recipeData);
+          enviarRecetaALovable(recipeData.titulo, recipeData.ingredientes, recipeData.pasos);
+        }
+      }
+    }
+  }, [messages]);
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString("es-ES", {
