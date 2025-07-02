@@ -62,10 +62,16 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // Solo monta Vite en desarrollo
-  if (app.get("env") === "development") {
+  // Detecta el entorno correctamente - Render establece NODE_ENV=production automáticamente
+  const isDevelopment = process.env.NODE_ENV === "development" || (!process.env.NODE_ENV && process.env.REPL_ID);
+  
+  if (isDevelopment) {
+    // Desarrollo: usa Vite dev server
+    console.log("🔧 Modo desarrollo - usando Vite dev server");
     await setupVite(app, server);
   } else {
+    // Producción: sirve archivos estáticos compilados
+    console.log("🚀 Modo producción - sirviendo archivos estáticos");
     serveStatic(app);
   }
 

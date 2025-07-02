@@ -26,6 +26,13 @@ A full-stack chat application that provides cooking assistance using OpenAI's GP
   - Removed hardcoded API_BASE_URL to support relative URLs in production
   - Added @types/cors dependency for TypeScript compatibility
   - Resolved "Error: no se pudo enviar el mensaje" issue for Render deployment
+- **July 2, 2025**: Added conversational context and independent deployment
+  - Implemented session-based conversation memory (last 14 messages)
+  - Upgraded to gpt-4o model for better responses
+  - Added IP-based session fallback for automatic session management
+  - Created independent deployment configuration for Render
+  - Enhanced environment detection for development vs production
+  - Added render.yaml and deployment documentation
 
 ## User Preferences
 - Language: Spanish (as evidenced by code comments)
