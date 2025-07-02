@@ -20,79 +20,76 @@ function enviarRecetaALovable(titulo: string, ingredientes: string[], pasos: str
   window.parent.postMessage(mensaje, "*"); // puedes reemplazar '*' por el dominio exacto si lo sabes
 }
 
-// Function to parse recipe from AI response text
-function parseRecipeFromText(text: string): { titulo: string; ingredientes: string[]; pasos: string[] } | null {
+// Function to extract title from recipe text
+function extraerTitulo(texto: string): string {
+  const lines = texto.split("\n").filter(line => line.trim());
+  if (lines.length > 0) {
+    // Take the first meaningful line and clean it
+    let titulo = lines[0].replace(/[🍝🥗🍲🧁✨🍽️😋]/g, "").trim();
+    if (titulo.startsWith("¡") && titulo.endsWith("!")) {
+      titulo = titulo.slice(1, -1);
+    }
+    return titulo || "Receta del Chef";
+  }
+  return "Receta del Chef";
+}
+
+// Function to extract ingredients from recipe text
+function extraerIngredientes(texto: string): string[] {
+  const match = texto.match(/Ingredientes:\s*([\s\S]*?)\n(?:Pasos|Instrucciones):/i);
+  if (!match) return [];
+  
+  return match[1]
+    .split("\n")
+    .map(line => line.replace(/^[🍚🧅🥕🥢🍖🧄🌿•-]\s*/, "").trim())
+    .filter(line => line && !line.toLowerCase().includes("ingredientes"));
+}
+
+// Function to extract steps from recipe text
+function extraerPasos(texto: string): string[] {
+  const match = texto.match(/(Pasos|Instrucciones):\s*([\s\S]*)/i);
+  if (!match) return [];
+  
+  return match[2]
+    .split(/\n\d+\.\s*/)
+    .map(paso => paso.trim())
+    .filter(paso => paso && paso.length > 5);
+}
+
+// Main function to detect and send recipe to Lovable
+function detectarYEnviarReceta(respuestaTexto: string): boolean {
   try {
-    // Look for recipe patterns in the text
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line);
-    
-    let titulo = "";
-    let ingredientes: string[] = [];
-    let pasos: string[] = [];
-    
-    let currentSection = "";
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      
-      // Try to detect title (usually first meaningful line or line with recipe name)
-      if (!titulo && (line.includes("receta") || line.includes("plato") || line.includes("delicioso"))) {
-        titulo = line.replace(/[🍝🥗🍲🧁✨]/g, "").trim();
-      }
-      
-      // Detect ingredients section
-      if (line.toLowerCase().includes("ingredientes") || line.includes("🍚") || line.includes("🧅")) {
-        currentSection = "ingredientes";
-        continue;
-      }
-      
-      // Detect steps section
-      if (line.toLowerCase().includes("pasos") || line.toLowerCase().includes("preparación") || 
-          line.toLowerCase().includes("instrucciones") || line.includes("1.") || line.includes("1-")) {
-        currentSection = "pasos";
-        continue;
-      }
-      
-      // Parse ingredients (lines with emoji indicators or bullet points)
-      if (currentSection === "ingredientes" && (line.includes("🍚") || line.includes("🧅") || 
-          line.includes("🥕") || line.includes("🥢") || line.startsWith("•") || line.startsWith("-"))) {
-        const ingredient = line.replace(/[🍚🧅🥕🥢•-]/g, "").trim();
-        if (ingredient) ingredientes.push(ingredient);
-      }
-      
-      // Parse steps (numbered or bulleted items)
-      if (currentSection === "pasos" && (line.match(/^\d+\./) || line.match(/^\d+-/) || line.startsWith("•") || line.startsWith("-"))) {
-        const step = line.replace(/^\d+[.-]\s*/, "").replace(/^[•-]\s*/, "").trim();
-        if (step) pasos.push(step);
-      }
-    }
-    
-    // If no explicit sections found, try to detect based on emojis and patterns
-    if (ingredientes.length === 0) {
-      for (const line of lines) {
-        if (line.includes("🍚") || line.includes("🧅") || line.includes("🥕") || line.includes("🥢")) {
-          const ingredient = line.replace(/[🍚🧅🥕🥢]/g, "").trim();
-          if (ingredient && !ingredient.toLowerCase().includes("pasos") && !ingredient.toLowerCase().includes("minutos")) {
-            ingredientes.push(ingredient);
+    const contieneIngredientes = respuestaTexto.includes("Ingredientes:");
+    const contienePasos = respuestaTexto.includes("Pasos:") || respuestaTexto.includes("Instrucciones:");
+
+    console.log("Checking recipe:", { contieneIngredientes, contienePasos });
+
+    if (contieneIngredientes && contienePasos) {
+      const titulo = extraerTitulo(respuestaTexto);
+      const ingredientes = extraerIngredientes(respuestaTexto);
+      const pasos = extraerPasos(respuestaTexto);
+
+      console.log("Extracted recipe data:", { titulo, ingredientes, pasos });
+
+      if (ingredientes.length > 0) {
+        const mensaje = {
+          type: "NUEVA_RECETA",
+          data: {
+            titulo,
+            ingredientes,
+            pasos
           }
-        }
+        };
+
+        console.log("Sending postMessage to parent:", mensaje);
+        window.parent.postMessage(mensaje, "*");
+        return true;
       }
     }
-    
-    // Set default title if none found
-    if (!titulo && ingredientes.length > 0) {
-      titulo = "Receta sugerida por el Chef";
-    }
-    
-    // Return recipe data if we found ingredients (minimum requirement for a recipe)
-    if (ingredientes.length > 0) {
-      return { titulo, ingredientes, pasos };
-    }
-    
-    return null;
+    return false;
   } catch (error) {
-    console.error("Error parsing recipe:", error);
-    return null;
+    console.error("Error detecting recipe:", error);
+    return false;
   }
 }
 
@@ -181,11 +178,13 @@ export default function Chat() {
       
       // Check if the last message is from the chef and contains recipe information
       if (lastMessage.sender === "chef") {
-        const recipeData = parseRecipeFromText(lastMessage.content);
+        console.log("New chef message received, checking for recipe...");
+        const recipeDetected = detectarYEnviarReceta(lastMessage.content);
         
-        if (recipeData) {
-          console.log("Recipe detected, sending to Lovable:", recipeData);
-          enviarRecetaALovable(recipeData.titulo, recipeData.ingredientes, recipeData.pasos);
+        if (recipeDetected) {
+          console.log("✅ Recipe successfully sent to Lovable!");
+        } else {
+          console.log("ℹ️ No structured recipe detected in this message");
         }
       }
     }
