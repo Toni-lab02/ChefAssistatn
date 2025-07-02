@@ -20,17 +20,36 @@ function enviarRecetaALovable(titulo: string, ingredientes: string[], pasos: str
   window.parent.postMessage(mensaje, "*"); // puedes reemplazar '*' por el dominio exacto si lo sabes
 }
 
+// Function to capitalize first letter
+function capitalizar(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 // Function to extract title from recipe text
 function extraerTitulo(texto: string): string {
+  // Look for phrases that suggest a recipe recommendation
+  const match = texto.match(/(?:te propongo|te sugiero|te recomiendo)\s+una?\s+(.*?)\s*(?:[,\.!]|$)/i);
+  if (match && match[1]) {
+    return capitalizar(match[1].trim());
+  }
+
+  // Alternative patterns for recipe suggestions
+  const alternativeMatch = texto.match(/(?:receta de|plato de|deliciosa?)\s+(.*?)\s*(?:[,\.!]|$)/i);
+  if (alternativeMatch && alternativeMatch[1]) {
+    return capitalizar(alternativeMatch[1].trim());
+  }
+
+  // Fallback: look for the first line that might contain a recipe name
   const lines = texto.split("\n").filter(line => line.trim());
   if (lines.length > 0) {
-    // Take the first meaningful line and clean it
-    let titulo = lines[0].replace(/[🍝🥗🍲🧁✨🍽️😋]/g, "").trim();
-    if (titulo.startsWith("¡") && titulo.endsWith("!")) {
-      titulo = titulo.slice(1, -1);
+    let titulo = lines[0].replace(/^(receta|plato)[:\-]?\s*/i, "").trim();
+    titulo = titulo.replace(/[🍝🥗🍲🧁✨🍽️😋¡!]/g, "").trim();
+    
+    if (titulo) {
+      return capitalizar(titulo);
     }
-    return titulo || "Receta del Chef";
   }
+
   return "Receta del Chef";
 }
 
